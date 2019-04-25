@@ -1,7 +1,8 @@
 import operator
 import random
 from functools import reduce
-
+from pandas import *
+import numpy as np
 
 class BaseGameSpec(object):
     def __init__(self):
@@ -127,9 +128,11 @@ class BaseGameSpec(object):
 
             if move not in _available_moves:
                 # if a player makes an invalid move the other player wins
+                # increase alpha to punish illegal moves
+                alpha = 1
                 if log:
                     print("illegal move ", move)
-                return -player_turn
+                return -alpha*player_turn
 
             board_state = self.apply_move(board_state, move, player_turn)
             if log:
@@ -141,6 +144,67 @@ class BaseGameSpec(object):
                     print("we have a winner, side: %s" % player_turn)
                 return winner
             player_turn = -player_turn
+            
+    def play_game_eps(self, plus_player_func, minus_player_func, eps, log=False, board_state=None):
+        """Run a single game of until the end, using the provided function args to determine the moves for each
+        player.
+
+        Args:
+            plus_player_func ((board_state(3 by 3 tuple of int), side(int)) -> move((int, int))): Function that takes the
+                current board_state and side this player is playing, and returns the move the player wants to play.
+            minus_player_func ((board_state(3 by 3 tuple of int), side(int)) -> move((int, int))): Function that takes the
+                current board_state and side this player is playing, and returns the move the player wants to play.
+            log (bool): If True progress is logged to console, defaults to False
+            board_state: Optionally have the game start from this position, rather than from a new board
+
+        Returns:
+            int: 1 if the plus_player_func won, -1 if the minus_player_func won and 0 for a draw
+        """
+        board_state = board_state or self.new_board()
+        player_turn = 1
+        
+            
+
+        while True:
+            _available_moves = list(self.available_moves(board_state))
+
+            if len(_available_moves) == 0:
+                # draw
+                if log:
+                    print("no moves left, game ended a draw")
+                return 0.
+            if player_turn > 0:
+                move = plus_player_func(board_state, 1, eps)
+            else:
+                    move = minus_player_func(board_state, -1, eps)
+
+            if move not in _available_moves:
+                # if a player makes an invalid move the other player wins
+                # increase alpha to punish illegal moves
+                alpha = 1
+                if log:
+                    print("illegal move ", move)
+                return -alpha*player_turn
+
+            board_state = self.apply_move(board_state, move, player_turn)
+
+            winner = self.has_winner(board_state)
+            
+            if log: #and switch:
+                for x in board_state:
+                    print(*x, sep=" | ")
+                    print("________")
+                print()
+                print()
+                
+            if winner != 0:
+                if log:
+                    print("we have a winner, side: %s" % player_turn)
+                return winner
+            player_turn = -player_turn
+            
+            
+            
 
     def get_random_player_func(self):
         """Return a function that makes moves for the current game by choosing a move randomly

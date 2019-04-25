@@ -1,7 +1,6 @@
 import operator
 import pickle
 from functools import reduce
-
 import numpy as np
 import tensorflow as tf
 
@@ -26,6 +25,64 @@ def create_network(input_nodes, hidden_nodes, output_nodes=None, output_softmax=
     variables = []
 
     with tf.name_scope('network'):
+        if isinstance(input_nodes, tuple):
+            input_layer = tf.placeholder("float", (None,) + input_nodes)
+            flat_size = reduce(operator.mul, input_nodes, 1)
+            current_layer = tf.reshape(input_layer, (-1, flat_size))
+        else:
+            input_layer = tf.placeholder("float", (None, input_nodes))
+            current_layer = input_layer
+
+        for hidden_nodes in hidden_nodes:
+            last_layer_nodes = int(current_layer.get_shape()[-1])
+            hidden_weights = tf.Variable(
+                tf.truncated_normal((last_layer_nodes, hidden_nodes), stddev=1. / np.sqrt(last_layer_nodes)),
+                name='weights')
+            hidden_bias = tf.Variable(tf.constant(0.01, shape=(hidden_nodes,)), name='biases')
+
+            variables.append(hidden_weights)
+            variables.append(hidden_bias)
+
+            current_layer = tf.nn.relu(
+                tf.matmul(current_layer, hidden_weights) + hidden_bias)
+
+        if isinstance(output_nodes, tuple):
+            output_nodes = reduce(operator.mul, input_nodes, 1)
+
+        # for some reason having output std divided by np.sqrt(output_nodes) massively outperforms np.sqrt(hidden_nodes)
+        output_weights = tf.Variable(
+            tf.truncated_normal((hidden_nodes, output_nodes), stddev=1. / np.sqrt(output_nodes)), name="output_weights")
+        output_bias = tf.Variable(tf.constant(0.01, shape=(output_nodes,)), name="output_bias")
+
+        variables.append(output_weights)
+        variables.append(output_bias)
+
+        output_layer = tf.matmul(current_layer, output_weights) + output_bias
+        if output_softmax:
+            output_layer = tf.nn.softmax(output_layer)
+
+    return input_layer, output_layer, variables
+
+def create_network_scope(input_nodes, hidden_nodes, output_nodes=None, output_softmax=True, scope="network"):
+    """Create a network with relu activations at each layer
+
+    Args:
+        output_nodes: (int): Number of output nodes, if None then number of input nodes is used
+        input_nodes (int or tuple(int)): The size of the board this network will work on. The output layer will also be
+            this size if not specified. Can be an int if 1d or a tuple of ints for a 2d+ dim board
+        hidden_nodes ([int]): The number of hidden nodes in each hidden layer
+        output_softmax (bool): If True softmax is used in the final layer, otherwise just use the activation with no
+            non-linearity function
+
+    Returns:
+        (input_layer, output_layer, [variables]) : The final item in the tuple is a list containing all the parameters,
+            wieghts and biases used in this network
+    """
+    output_nodes = output_nodes or input_nodes
+
+    variables = []
+
+    with tf.name_scope(scope):
         if isinstance(input_nodes, tuple):
             input_layer = tf.placeholder("float", (None,) + input_nodes)
             flat_size = reduce(operator.mul, input_nodes, 1)
@@ -146,6 +203,13 @@ def get_stochastic_network_move(session, input_layer, output_layer, board_state,
             np.put(move, game_spec.tuple_move_to_flat(available_moves[0]), 1)
             return move
         available_moves_flat = [game_spec.tuple_move_to_flat(x) for x in available_moves]
+        #print(f'available moves: {available_moves_flat}')
+        #if np.random.rand() < 0.7:
+        #    pick = random.choice(available_moves_flat)
+        #    move = np.zeros(game_spec.board_squares())
+        #    np.put(move, pick, 1)
+            #print(f'random move {move}')
+        #    return move
         for i in range(game_spec.board_squares()):
             if i not in available_moves_flat:
                 probability_of_actions[i] = 0.
@@ -153,6 +217,12 @@ def get_stochastic_network_move(session, input_layer, output_layer, board_state,
         prob_mag = sum(probability_of_actions)
         if prob_mag != 0.:
             probability_of_actions /= sum(probability_of_actions)
+            
+        #best_move_ = np.max(probability_of_actions)
+        #best_move = [(x==best_move_)*1 for x in probability_of_actions]
+        #print(game_spec.board_squares())
+        #print(f'prob_of_actions: {probability_of_actions}')
+        #print(f'best move: {best_move}')
 
     try:
         move = np.random.multinomial(1, probability_of_actions)
