@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Tue Apr 23 14:26:08 2019
+Created on Tue Apr 23 2019
 
 @author: tobiasbraun
 
@@ -28,15 +26,16 @@ winning themselve. If it is their turn and to win in 1 move they prefer to stop 
 in 1 move and play on.
 
 """
+###############################   Imports    ##################################
 
 import collections
 import os
 import random
-
 import numpy as np
 import tensorflow as tf
-
 from common.network_helpers import load_network, save_network
+
+###############################################################################
 
 def get_td_network_move(session, input_layer, output_layer, board_state, side, eps=0.1,
                                 valid_only=False, game_spec=None, ):
@@ -98,8 +97,9 @@ def get_td_network_move(session, input_layer, output_layer, board_state, side, e
             np.put(best_move, pick, 1)
     return best_move
 
+###############################################################################
 
-log_ = False
+log_ = False # just for logging purposes
 
 def DQN_train(game_spec,
                            create_network, # this should have scope principal
@@ -158,7 +158,9 @@ def DQN_train(game_spec,
     
     gamma = 0.99
     tau = 100
-    
+###############################################################################    
+
+#To copy the principal to the target network
     
     def build_target_update(from_scope, to_scope):
         from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=from_scope)
@@ -169,6 +171,8 @@ def DQN_train(game_spec,
         return op  
     
     update = build_target_update("principal", "target")
+
+###############################################################################
     
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -177,13 +181,14 @@ def DQN_train(game_spec,
             print("loading pre-existing network")
             load_network(session, variables, network_file_path)
 
-        mini_batch_board_states, mini_batch_moves, mini_batch_rewards, mini_batch_board_states_temp, \
-        mini_batch_board_states_temp_2, mini_batch_next_board_states, mini_batch_next_board_states_2 = [], [], [], [], [], [], []
-        results = collections.deque(maxlen=print_results_every)
-
+        mini_batch_board_states, mini_batch_moves, mini_batch_rewards = [], [], []
         mini_batch_board_states_2, mini_batch_moves_2, mini_batch_rewards_2 = [], [], []
+        mini_batch_board_states_temp, mini_batch_next_board_states = [], []
+        mini_batch_board_states_temp_2, mini_batch_next_board_states_2 = [], []
+        results = collections.deque(maxlen=print_results_every)
         results_2 = collections.deque(maxlen=print_results_every)
-        
+      
+###############################################################################
         
         def make_training_move(board_state, side, eps):
             mini_batch_board_states.append(np.ravel(board_state) * side)
@@ -193,8 +198,11 @@ def DQN_train(game_spec,
             mini_batch_moves.append(move)
             return game_spec.flat_move_to_tuple(move.argmax())
         
-        
-        
+###############################################################################        
+
+#It has the option of letting the user play the game when log_ is set to
+# "Interactive"
+            
         def make_training_move_2(board_state, side, eps):
             """
             To have the second player play randomly, change positional argument eps in get_td_network_move() to > eps=1 <.
@@ -215,12 +223,14 @@ def DQN_train(game_spec,
             mini_batch_moves_2.append(move)
             return game_spec.flat_move_to_tuple(move.argmax())
 
+###############################   Training   ##################################
+            
         for episode_number in range(1, number_of_games):
             global log_
             log_ = False
             if episode_number % 20000 == 0:
                 log_=True
-            elif episode_number %50000==0 or (episode_number>400000 and episode_number %5000):
+            elif (episode_number%50000) == 0 or (episode_number>400000 and episode_number %5000):
                 log_ = "Interactive"
             eps = np.exp(-10*episode_number/number_of_games) #5000/episode_number # np.exp(-5*episode_number/200000)
             
@@ -285,7 +295,7 @@ def DQN_train(game_spec,
 
                 Q_targets = np.max(session.run(output_layer_t,
                     feed_dict={input_layer_t: np_mini_batch_next_board_states}), axis=1)
-                done = [0 if all([x == 0 for x in i]) else 1 for i in np_mini_batch_next_board_states ]
+                done = [0 if all([x == 0 for x in i]) else 1 for i in np_mini_batch_next_board_states]
                 targets_ = mini_batch_rewards + gamma*Q_targets*done
                 
                 session.run(train_step, feed_dict={input_layer: np_mini_batch_board_states, \
@@ -293,25 +303,26 @@ def DQN_train(game_spec,
 
                 if (episode_number%tau == 0):
                     session.run(update)
-       
+                    
+###############################################################################
+                    
                 # clear batches
+                
                 del mini_batch_board_states[:]
                 del mini_batch_moves[:]
                 del mini_batch_rewards[:]
-           #     """"""
                 del mini_batch_board_states_2[:]
                 del mini_batch_moves_2[:]
                 del mini_batch_rewards_2[:]
-           #     """"""
                 mini_batch_next_board_states = []
                 mini_batch_next_board_states_2 = []
                 length, length_2 = 0, 0
                 mini_batch_board_states_temp = []
                 mini_batch_board_states_temp_2 = []
-                
-                
                 new_moves = []
                 new_moves_2 = []
+                
+###############################   Results    ##################################
 
             if episode_number % print_results_every == 0:
                 draws = sum([x == 0 for x in results])
@@ -326,6 +337,7 @@ def DQN_train(game_spec,
             
             
 ####################     ANALYSIS & LOGGING ###################################
+                    
             if episode_number % 50000 == 0:
                 Q = session.run(output_layer_t,
                     feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
@@ -337,16 +349,15 @@ def DQN_train(game_spec,
                     feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
                 print(f'Q-values: {Q}')
             
-            
-                
 ###############################################################################
+        
         if network_file_path:
             save_network(session, variables, save_network_file_path)
             save_network(session, variables_2, save_network_file_path)
 
     return variables, _win_rate(print_results_every, results)
 
-
+###############################################################################
 
 def _win_rate(print_results_every, results):
     return 0.5 + sum(results) / (print_results_every * 2.)

@@ -11,15 +11,16 @@ function approximation. It actually goes as far as underperforming against a ran
 This means it actually learns to play badly.
 
 """
-
+###############################   Imports    ##################################
 import collections
 import os
 import random
-
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-
 from common.network_helpers import load_network, save_network
+
+###############################################################################
 
 def get_td_network_move(session, input_layer, output_layer, board_state, side, eps=0.1,
                                 valid_only=False, game_spec=None, ):
@@ -77,7 +78,7 @@ def get_td_network_move(session, input_layer, output_layer, board_state, side, e
         np.put(best_move, pick, 1)
     return best_move
 
-
+###############################################################################
 
 def td_learning_train(game_spec,
                            create_network,
@@ -130,6 +131,7 @@ def td_learning_train(game_spec,
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_1)
     train_step_2 = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_2)
 
+    Q_value_log = []
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -159,17 +161,19 @@ def td_learning_train(game_spec,
             make_training_move_2(..., eps).
             """
             mini_batch_board_states_2.append(np.ravel(board_state) * side)
-            move = get_td_network_move(session, input_layer_2, output_layer_2, board_state, side, eps, valid_only=True, game_spec=game_spec) # valid_only=True, game_spec=game_spec
+            move = get_td_network_move(session, input_layer_2, output_layer_2, board_state, side, eps=1, valid_only=True, game_spec=game_spec) # valid_only=True, game_spec=game_spec
             mini_batch_moves_2.append(move)
             return game_spec.flat_move_to_tuple(move.argmax())
-
+        
+###############################   Training   ##################################
+            
         for episode_number in range(1, number_of_games):
             
 
             log_ = False
             eps = 5000/episode_number
-            if episode_number%5000 == 0:
-                log_ =  True
+            #if episode_number%5000 == 0: # shows game after every 5000 episodes
+            #    log_ =  True
             if (not randomize_first_player) or bool(random.getrandbits(1)):
                 reward = game_spec.play_game_eps(make_training_move, make_training_move_2, eps, log = log_) # log = log_
                 reward_2 = - reward
@@ -187,11 +191,12 @@ def td_learning_train(game_spec,
             reward /= float(last_game_length)
             reward_2 /= float(last_game_length_2)
 
-            mini_batch_rewards += ([reward] * (last_game_length))# remember that this applies a reward to the whole game!!
+            mini_batch_rewards += ([reward] * (last_game_length))# This applies a reward to the whole game!!
             mini_batch_rewards_2 += ([reward_2] * last_game_length_2) # Changes learning dynmics. No sparse reward environment anymore.
 
 
-            #   applying TD learning after every game. -> unstable, Q-values will diverge
+###################   applying TD learning after every game. -> unstable, Q-values will diverge
+            
             for i in range(len(mini_batch_rewards)-1):
                 state = mini_batch_board_states[i]
                 state = state.reshape(1, *input_layer.get_shape().as_list()[1:])
@@ -206,6 +211,8 @@ def td_learning_train(game_spec,
          
                 session.run(train_step, feed_dict={input_layer: state, actual_move_placeholder: move, target_1: target})
                 
+###############################################################################  
+            
             #for i in range(len(mini_batch_rewards_2)-1):
             #    state = mini_batch_board_states_2[i]
             #    state = state.reshape(1, *input_layer_2.get_shape().as_list()[1:])
@@ -232,21 +239,34 @@ def td_learning_train(game_spec,
             del mini_batch_moves_2[:]
             del mini_batch_rewards_2[:]
            #     """"""
-
-        if episode_number % print_results_every == 0:
-            draws = sum([x == 0 for x in results])
-            print(" Player 1: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results)))
-            print(" Player 2: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results_2)))
-            print(f'Proportion of Draws: = {draws/print_results_every}')
-            if network_file_path:
-                save_network(session, variables, save_network_file_path)
-                save_network(session, variables_2, save_network_file_path)
-                
-
+           #just saving the Q-value for one state to show divergence of Q-Values
+            Q_value_log += [list(session.run(output_layer,
+                    feed_dict={input_layer: np.expand_dims([0,0,0,0,0,0,0,0,0],0)})[0])[0]]
+    
+    
+###############################   Results    ##################################
+    
+            if episode_number % print_results_every == 0:
+                draws = sum([x == 0 for x in results])
+                print(" Player 1: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results)))
+                print(" Player 2: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results_2)))
+                print(f'Proportion of Draws: = {draws/print_results_every}')
+            
         if network_file_path:
             save_network(session, variables, save_network_file_path)
             save_network(session, variables_2, save_network_file_path)
-
+            
+###############################   Plotting   ##################################
+            
+    plt.plot(Q_value_log)
+    plt.title("Q-value-Divergence - Deadly Triad")
+    plt.xlabel("iterations")
+    plt.ylabel("Q-values")
+    #plt.savefig('Q-value-Divergence.png')
+    plt.show()
+    
+###############################################################################
+    
     return variables, _win_rate(print_results_every, results)
 
 
