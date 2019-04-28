@@ -131,7 +131,8 @@ class BaseGameSpec(object):
                 # increase alpha to punish illegal moves
                 alpha = 1
                 if log:
-                    print("illegal move ", move)
+                    print(f'Player {player_turn} played an illegal move ', move)
+                    print(f'Player {- player_turn} wins.')
                 return -alpha*player_turn
 
             board_state = self.apply_move(board_state, move, player_turn)
@@ -141,7 +142,7 @@ class BaseGameSpec(object):
             winner = self.has_winner(board_state)
             if winner != 0:
                 if log:
-                    print("we have a winner, side: %s" % player_turn)
+                    print("we have a winner, side playing with symbol: %s" % player_turn)
                 return winner
             player_turn = -player_turn
             
@@ -183,7 +184,8 @@ class BaseGameSpec(object):
                 # increase alpha to punish illegal moves
                 alpha = 1
                 if log:
-                    print("illegal move ", move)
+                    print(f'Player {player_turn} played an illegal move ', move)
+                    print(f'Player {- player_turn} wins.')
                 return -alpha*player_turn
 
             board_state = self.apply_move(board_state, move, player_turn)
@@ -199,7 +201,7 @@ class BaseGameSpec(object):
                 
             if winner != 0:
                 if log:
-                    print("we have a winner, side: %s" % player_turn)
+                    print("we have a winner, side playing with symbol: %s" % player_turn)
                 return winner
             player_turn = -player_turn
             

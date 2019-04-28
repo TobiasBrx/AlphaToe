@@ -1,8 +1,4 @@
 """
-Created on Tue Apr 23 2019
-
-@author: tobiasbraun
-
 It is important to note that if the second player is randomized without knowing the rules,
 their performance is so bad that the DQN algorithm simply learns how to play legal moves
 and waits until the random opponent makes an illegal move which causes the DQN agent to win.
@@ -63,7 +59,6 @@ def get_td_network_move(session, input_layer, output_layer, board_state, side, e
                                       feed_dict={input_layer: np_board_state})[0]
     if valid_only:
         available_moves = list(game_spec.available_moves(board_state))
-        #print(available_moves)
         
         if len(available_moves) == 1:
             move = np.zeros(game_spec.board_squares())
@@ -134,7 +129,6 @@ def DQN_train(game_spec,
     Returns:
         (variables used in the final network : list, win rate: float)
     """
-    save_network_file_path = save_network_file_path or network_file_path
 
     input_layer, output_layer, variables = create_network()
     input_layer_2, output_layer_2, variables_2 = create_network_2()
@@ -142,19 +136,19 @@ def DQN_train(game_spec,
     input_layer_t2, output_layer_t2, variables_t2 = create_target_network_2()
     
     target_1 = tf.placeholder("float", shape=(None))
-    target_2 = tf.placeholder("float", shape=(None))
+    #target_2 = tf.placeholder("float", shape=(None))
     
     actual_move_placeholder = tf.placeholder("float", shape=(None, game_spec.outputs()))
-    actual_move_placeholder_2 = tf.placeholder("float", shape=(None, game_spec.outputs()))
+    #actual_move_placeholder_2 = tf.placeholder("float", shape=(None, game_spec.outputs()))
     
     prediction = tf.reduce_sum(actual_move_placeholder*output_layer, axis=1)
-    prediction_2 = tf.reduce_sum(actual_move_placeholder_2*output_layer_2, axis=1)
+    #prediction_2 = tf.reduce_sum(actual_move_placeholder_2*output_layer_2, axis=1)
     
     td_gradient_1 = tf.reduce_mean(tf.square(prediction - target_1))
-    td_gradient_2 = tf.reduce_mean(tf.square(prediction_2 - target_2))
+    #td_gradient_2 = tf.reduce_mean(tf.square(prediction_2 - target_2))
     
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_1)
-    train_step_2 = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_2)
+    #train_step_2 = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_2)
     
     gamma = 0.99
     tau = 100
@@ -178,7 +172,7 @@ def DQN_train(game_spec,
         session.run(tf.global_variables_initializer())
 
         if network_file_path and os.path.isfile(network_file_path):
-            print("loading pre-existing network")
+            print(f"Loading pre-existing network from {network_file_path}")
             load_network(session, variables, network_file_path)
 
         mini_batch_board_states, mini_batch_moves, mini_batch_rewards = [], [], []
@@ -230,14 +224,17 @@ def DQN_train(game_spec,
             log_ = False
             if episode_number % 20000 == 0:
                 log_=True
-            elif (episode_number%50000) == 0 or (episode_number>400000 and episode_number %5000):
-                log_ = "Interactive"
+            # change log_ to log_ = "Interactive" to play against the current network
             eps = np.exp(-10*episode_number/number_of_games) #5000/episode_number # np.exp(-5*episode_number/200000)
             
             if (not randomize_first_player) or bool(random.getrandbits(1)):
+                if log_:
+                        print("Player 1 starts with symbol 1. Player 2 follows with symbol -1")
                 reward = game_spec.play_game_eps(make_training_move, make_training_move_2, eps, log = log_)
                 reward_2 = - reward
             else:
+                if log_:
+                        print("Player 2 starts with symbol 1. Player 1 follows with symbol -1")
                 reward = -game_spec.play_game_eps(make_training_move_2, make_training_move, eps, log = log_)
                 reward_2 = - reward
 
@@ -286,12 +283,12 @@ def DQN_train(game_spec,
                 
                 np_mini_batch_board_states = np.array(mini_batch_board_states) \
                     .reshape(len(mini_batch_rewards), *input_layer.get_shape().as_list()[1:])
-                np_mini_batch_board_states_2 = np.array(mini_batch_board_states_2) \
-                    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
+                #np_mini_batch_board_states_2 = np.array(mini_batch_board_states_2) \
+                #    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
                 np_mini_batch_next_board_states = np.array(mini_batch_next_board_states) \
                     .reshape(len(mini_batch_rewards), *input_layer.get_shape().as_list()[1:])
-                np_mini_batch_next_board_states_2 = np.array(mini_batch_next_board_states_2) \
-                    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
+                #np_mini_batch_next_board_states_2 = np.array(mini_batch_next_board_states_2) \
+                #    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
 
                 Q_targets = np.max(session.run(output_layer_t,
                     feed_dict={input_layer_t: np_mini_batch_next_board_states}), axis=1)
@@ -329,12 +326,6 @@ def DQN_train(game_spec,
                 print(" Player 1: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results)))
                 print(" Player 2: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results_2)))
                 print(f'Proportion of Draws: = {draws/print_results_every}')
-                if network_file_path:
-                    save_network(session, variables, save_network_file_path)
-                    save_network(session, variables_2, save_network_file_path)
-            
-            
-            
             
 ####################     ANALYSIS & LOGGING ###################################
                     
@@ -351,9 +342,9 @@ def DQN_train(game_spec,
             
 ###############################################################################
         
-        if network_file_path:
+        if save_network_file_path:
+            print(f"Saving Network at {save_network_file_path}")
             save_network(session, variables, save_network_file_path)
-            save_network(session, variables_2, save_network_file_path)
 
     return variables, _win_rate(print_results_every, results)
 

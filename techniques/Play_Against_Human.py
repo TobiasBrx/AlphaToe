@@ -138,7 +138,7 @@ def DQN_train_Nash(game_spec,
         (variables used in the final network : list, win rate: float)
     """
     #save_network_file_path = save_network_file_path or network_file_path
-
+   
     input_layer, output_layer, variables = create_network()
     input_layer_2, output_layer_2, variables_2 = create_network_2()
     input_layer_t, output_layer_t, variables_t = create_target_network()
@@ -234,18 +234,15 @@ def DQN_train_Nash(game_spec,
             log_ = False
             if episode_number % 20000 == 0:
                 log_=True
-            #elif (episode_number%50000) == 0 or (episode_number>400000 and episode_number %5000):
-            #    log_ = "Interactive"
-            eps = np.exp(-10*episode_number/number_of_games) #5000/episode_number # np.exp(-5*episode_number/200000)
+            elif True:#(episode_number%50000) == 0 or (episode_number>400000 and episode_number %5000):
+                log_ = "Interactive"
+            eps = 0#np.exp(-10*episode_number/number_of_games) #5000/episode_number # np.exp(-5*episode_number/200000)
             
             if (not randomize_first_player) or bool(random.getrandbits(1)):
-                if log_:
-                        print("Player 1 starts with symbol 1. Player 2 follows with symbol -1")
                 reward = game_spec.play_game_eps(make_training_move, make_training_move_2, eps, log = log_)
                 reward_2 = - reward
             else:
-                if log_:
-                        print("Player 2 starts with symbol 1. Player 1 follows with symbol -1")
+                print("_____________  YOU START  _______________")
                 reward = -game_spec.play_game_eps(make_training_move_2, make_training_move, eps, log = log_)
                 reward_2 = - reward
 
@@ -354,8 +351,7 @@ def DQN_train_Nash(game_spec,
                     update_winner_to_loser_t = build_target_update("target", "target_2")
                     session.run(update_winner_to_loser)
                     session.run(update_winner_to_loser_t)
-                #logging sample Q-values
-                """
+                    
                     Q = session.run(output_layer_t,
                     feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
                     print(f'Q-values: {Q}')
@@ -408,14 +404,13 @@ def DQN_train_Nash(game_spec,
                     Q = session.run(output_layer_t,
                     feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
                     print(f'Q-values: {Q}')
-                """
+          
             
 ####################     ANALYSIS & LOGGING ###################################
 #if the network knows to play well it will have:
             # 1) the second to last element is max or the last element is max or the first element is max
             # 2) the first element is max
             # 3) the last element is max
-            """
             if episode_number % 50000 == 0:
                 Q = session.run(output_layer_t,
                     feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
@@ -436,7 +431,6 @@ def DQN_train_Nash(game_spec,
                 Q = session.run(output_layer_t2,
                     feed_dict={input_layer_t2: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
                 print(f'Q-values: {Q}')
-            """
             
 ###############################################################################
         

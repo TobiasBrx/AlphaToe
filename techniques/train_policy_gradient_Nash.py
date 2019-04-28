@@ -43,7 +43,7 @@ def train_policy_gradients(game_spec,
     Returns:
         (variables used in the final network : list, win rate: float)
     """
-    save_network_file_path = save_network_file_path or network_file_path
+    save_network_file_path = save_network_file_path #or network_file_path
     #opponent_func = opponent_func or game_spec.get_random_player_func()
     reward_placeholder = tf.placeholder("float", shape=(None,))
     actual_move_placeholder = tf.placeholder("float", shape=(None, game_spec.outputs()))
@@ -61,13 +61,12 @@ def train_policy_gradients(game_spec,
     policy_gradient_2 = tf.log(
         tf.reduce_sum(tf.multiply(actual_move_placeholder_2, output_layer_2), reduction_indices=1)) * reward_placeholder_2
     train_step_2 = tf.train.AdamOptimizer(learn_rate).minimize(-policy_gradient_2)
-    log__ = False
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
 
         if network_file_path and os.path.isfile(network_file_path):
-            print("loading pre-existing network")
+            print(f"Loading pre-existing network from {network_file_path}")
             load_network(session, variables, network_file_path)
 
         mini_batch_board_states, mini_batch_moves, mini_batch_rewards = [], [], []
@@ -168,9 +167,10 @@ def train_policy_gradients(game_spec,
                     save_network(session, variables_2, save_network_file_path)
                 
 
-        if network_file_path:
+        if save_network_file_path:
+            print(f"Saving Network at {save_network_file_path}")
             save_network(session, variables, save_network_file_path)
-            save_network(session, variables_2, save_network_file_path)
+            #save_network(session, variables_2, save_network_file_path)
 
     return variables, _win_rate(print_results_every, results)
 
