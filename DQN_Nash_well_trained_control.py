@@ -1,12 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Wed Apr 24 13:09:16 2019
-
-@author: tobiasbraun
-"""
-
-"""
+IMPORTANT:
+    RESTART KERNEL BEFORE RUNNING. OTHERWISE NETWORK COPY DOESN'T WORK.
 Builds and trains two competing neural network that use DQN to learn to play Tic-Tac-Toe.
 
 The input to the network is a vector with a number for each space on the board (One hot encoded so that it is a
@@ -36,17 +30,17 @@ I will now implement the option of copying over the winning network to the other
 import functools
 from common.network_helpers import create_network_scope
 from games.tic_tac_toe import TicTacToeGameSpec
-from techniques.DQN_Nash import DQN_train_Nash
+from techniques.DQN_Nash_well_trained import DQN_train_Nash
 
 ###############################################################################
 
 BATCH_SIZE = 100  # every how many games to do a parameter update?
 LEARN_RATE = 1e-4
 PRINT_RESULTS_EVERY_X = 1000  # every how many games to print the results
-NETWORK_FILE_PATH = None#'current_network.p'  # path to save the network to
+NETWORK_FILE_PATH = "pickles/DQN_Nash_well_trained_Network_Pickle"#/'current_network.p'  # path to save the network to
 NUMBER_OF_GAMES_TO_RUN = 500000
 COPY_NETWORK_AT = 0.55 # winning rate after which the network is copied over
-
+network_file_path_load = None # "pickles/DQN_Nash_well_trained_Network_Pickle"
 # to play a different game change this to another spec, e.g TicTacToeXGameSpec or ConnectXGameSpec, to get these to run
 # well may require tuning the hyper parameters a bit
 game_spec = TicTacToeGameSpec()
@@ -64,7 +58,8 @@ create_network_func_target_2 = functools.partial(create_network_scope, game_spec
 
 DQN_train_Nash(game_spec, create_network_func, create_network_func_2, 
                       create_network_func_target, create_network_func_target_2,
-                      NETWORK_FILE_PATH,
+                      network_file_path=network_file_path_load,
+                      save_network_file_path=NETWORK_FILE_PATH,
                       number_of_games=NUMBER_OF_GAMES_TO_RUN,
                       batch_size=BATCH_SIZE,
                       learn_rate=LEARN_RATE,
