@@ -398,8 +398,6 @@ def DQN_train_Nash(game_spec,
                     print(f'Q-values: {Q}')
                     Q = session.run(output_layer_t2,
                     feed_dict={input_layer_t2: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
                     print(f'Q-values: {Q}')
           
             
