@@ -30,7 +30,7 @@ I will now implement the option of copying over the winning network to the other
 import functools
 from common.network_helpers import create_network_scope
 from games.tic_tac_toe import TicTacToeGameSpec
-from techniques.DQN_Nash_well_trained import DQN_train_Nash
+from techniques.DQN_minmax import DQN_train_Nash
 from techniques.min_max import min_max_alpha_beta
 
 ###############################################################################
