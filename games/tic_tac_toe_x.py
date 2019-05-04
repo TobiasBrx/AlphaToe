@@ -195,7 +195,7 @@ def evaluate(board_state, winning_length):
     return score
 
 
-def play_game(plus_player_func, minus_player_func, board_size=5, winning_length=4, log=False):
+def play_game(plus_player_func, minus_player_func, board_size=3, winning_length=3, log=False):
     """Run a single game of tic-tac-toe until the end, using the provided function args to determine the moves for each
     player.
 
@@ -295,4 +295,4 @@ class TicTacToeXGameSpec(BaseGameSpec):
 
 if __name__ == '__main__':
     # example of playing a game
-    play_game(random_player, random_player, log=True, board_size=10, winning_length=4)
+    play_game(random_player, random_player, log=True, board_size=3, winning_length=3)

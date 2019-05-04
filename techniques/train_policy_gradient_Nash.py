@@ -43,6 +43,10 @@ def train_policy_gradients(game_spec,
     Returns:
         (variables used in the final network : list, win rate: float)
     """
+    p1wins = np.array([])
+    p2wins = np.array([])
+    drawsarr = np.array([])
+
     save_network_file_path = save_network_file_path #or network_file_path
     #opponent_func = opponent_func or game_spec.get_random_player_func()
     reward_placeholder = tf.placeholder("float", shape=(None,))
@@ -166,13 +170,18 @@ def train_policy_gradients(game_spec,
                     save_network(session, variables, save_network_file_path)
                     save_network(session, variables_2, save_network_file_path)
                 
+                p1wins = np.append(p1wins, _win_rate_strict(print_results_every, results))
+                p2wins = np.append(p2wins, _win_rate_strict(print_results_every, results_2))
+                drawsarr = np.append(drawsarr, draws/print_results_every)
+
 
         if save_network_file_path:
             print(f"Saving Network at {save_network_file_path}")
             save_network(session, variables, save_network_file_path)
             #save_network(session, variables_2, save_network_file_path)
 
-    return variables, _win_rate(print_results_every, results)
+    return p1wins, p2wins, drawsarr
+    #return variables, _win_rate(print_results_every, results)
 
 
 

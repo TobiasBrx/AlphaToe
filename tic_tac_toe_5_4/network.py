@@ -77,6 +77,8 @@ def create_convolutional_network():
                                        # feed_forward_weights_1, feed_forward_bias_1,
                                        feed_forward_weights_2, feed_forward_bias_2]
 
-file_path = 'convolutional_net_5_4_l_c_4_f_1_other_fresh.p'
+if __name__=='__main__':
 
-benchmark(tic_tac_toe_5_4_game_spec, file_path, create_convolutional_network)
+    file_path = 'convolutional_net_5_4_l_c_4_f_1_other_fresh.p'
+
+    benchmark(tic_tac_toe_5_4_game_spec, file_path, create_convolutional_network)

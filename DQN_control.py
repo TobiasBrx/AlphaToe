@@ -19,6 +19,7 @@ force a draw.
 ###############################   Imports    ##################################
 
 import functools
+import numpy as np
 from common.network_helpers import create_network_scope
 from games.tic_tac_toe import TicTacToeGameSpec
 from techniques.DQN import DQN_train
@@ -46,7 +47,7 @@ create_network_func_target_2 = functools.partial(create_network_scope, game_spec
                                         (100, 100, 100), output_softmax=False, scope="target_2")
 
 
-DQN_train(game_spec, create_network_func, create_network_func_2, 
+p1wins, p2wins, drawsarr = DQN_train(game_spec, create_network_func, create_network_func_2, 
                       create_network_func_target, create_network_func_target_2,
                       network_file_path=network_file_path_load,
                       save_network_file_path=NETWORK_FILE_PATH,
@@ -55,3 +56,8 @@ DQN_train(game_spec, create_network_func, create_network_func_2,
                       learn_rate=LEARN_RATE,
                       print_results_every=PRINT_RESULTS_EVERY_X,
                       randomize_first_player=False)
+
+np.save("pickles/DQN_p1.npy", p1wins)
+np.save("pickles/DQN_p2.npy", p2wins)
+np.save("pickles/DQN_draws.npy", drawsarr)
+print("saved!")

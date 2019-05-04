@@ -27,6 +27,7 @@ as good as it can do, because 3x3 tic-tac-toe is a theoretical draw, so the rand
 force a draw.
 """
 import functools
+import numpy as np
 
 from common.network_helpers import create_network
 from games.tic_tac_toe import TicTacToeGameSpec
@@ -45,9 +46,16 @@ game_spec = TicTacToeGameSpec()
 create_network_func = functools.partial(create_network, game_spec.board_squares(), (100, 100, 100)) # Agent 1 learning network
 create_network_func_2 = functools.partial(create_network, game_spec.board_squares(), (100, 100, 100)) # Agent 2 learning network
 
-train_policy_gradients(game_spec, create_network_func, create_network_func_2, NETWORK_FILE_PATH,
+
+p1wins, p2wins, drawsarr = train_policy_gradients(game_spec, create_network_func, create_network_func_2, NETWORK_FILE_PATH,
                        number_of_games=NUMBER_OF_GAMES_TO_RUN,
                        batch_size=BATCH_SIZE,
                        learn_rate=LEARN_RATE,
                        print_results_every=PRINT_RESULTS_EVERY_X,
                        randomize_first_player=False) #The first player always starts
+
+
+np.save("pickles/train_policy_gradient_Nash_p1.npy", p1wins)
+np.save("pickles/train_policy_gradient_Nash_p2.npy", p2wins)
+np.save("pickles/train_policy_gradient_Nash_draws.npy", drawsarr)
+print("saved!")

@@ -111,6 +111,11 @@ def td_learning_train(game_spec,
     Returns:
         (variables used in the final network : list, win rate: float)
     """
+
+    p1wins = np.array([])
+    p2wins = np.array([])
+    drawsarr = np.array([])
+
     save_network_file_path = save_network_file_path or network_file_path
 
     input_layer, output_layer, variables = create_network()
@@ -251,6 +256,10 @@ def td_learning_train(game_spec,
                 print(" Player 1: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results)))
                 print(" Player 2: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results_2)))
                 print(f'Proportion of Draws: = {draws/print_results_every}')
+
+                p1wins = np.append(p1wins, _win_rate_strict(print_results_every, results))
+                p2wins = np.append(p2wins, _win_rate_strict(print_results_every, results_2))
+                drawsarr = np.append(drawsarr, draws/print_results_every)
             
         if network_file_path:
             save_network(session, variables, save_network_file_path)
@@ -267,7 +276,8 @@ def td_learning_train(game_spec,
     
 ###############################################################################
     
-    return variables, _win_rate(print_results_every, results)
+    return p1wins, p2wins, drawsarr
+    #return variables, _win_rate(print_results_every, results)
 
 
 

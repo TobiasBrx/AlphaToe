@@ -138,6 +138,9 @@ def DQN_train_Nash(game_spec,
         (variables used in the final network : list, win rate: float)
     """
     #save_network_file_path = save_network_file_path or network_file_path
+    p1wins = np.array([])
+    p2wins = np.array([])
+    drawsarr = np.array([])
 
     input_layer, output_layer, variables = create_network()
     input_layer_2, output_layer_2, variables_2 = create_network_2()
@@ -347,6 +350,10 @@ def DQN_train_Nash(game_spec,
                 print(" Player 2: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results_2)))
                 print(f'Proportion of Draws: = {draws/print_results_every}')
                 
+                p1wins = np.append(p1wins, _win_rate_strict(print_results_every, results))
+                p2wins = np.append(p2wins, _win_rate_strict(print_results_every, results_2))
+                drawsarr = np.append(drawsarr, draws/print_results_every)
+
                 if(_win_rate_strict(print_results_every, results) > copy_network_at):
                     print("_______________________COPYING NETWORK_________________________")
                     print("_____________________Player 1 -> Player 2______________________")
@@ -444,7 +451,8 @@ def DQN_train_Nash(game_spec,
             save_network(session, variables_t, save_network_file_path)
             save_network(session, variables_t2, save_network_file_path)
 
-    return variables, _win_rate(print_results_every, results)
+    #return variables, _win_rate(print_results_every, results)
+    return p1wins, p2wins, drawsarr
 
 ###############################################################################
 
