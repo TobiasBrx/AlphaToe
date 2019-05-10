@@ -11,7 +11,7 @@ This will have two agents have compete against each other with independent neura
 It turns out that this is extremely unstable.
 
 """
-
+log_ = False
 def train_policy_gradients(game_spec,
                            create_network,
                            create_network_2,
@@ -22,7 +22,8 @@ def train_policy_gradients(game_spec,
                            print_results_every=1000,
                            learn_rate=1e-4,
                            batch_size=100,
-                           randomize_first_player=True):
+                           randomize_first_player=True,
+                           copy_network_at=0.65):
     """Train a network using policy gradients
 
     Args:
@@ -65,6 +66,20 @@ def train_policy_gradients(game_spec,
     policy_gradient_2 = tf.log(
         tf.reduce_sum(tf.multiply(actual_move_placeholder_2, output_layer_2), reduction_indices=1)) * reward_placeholder_2
     train_step_2 = tf.train.AdamOptimizer(learn_rate).minimize(-policy_gradient_2)
+    ###############################################################################    
+
+#To copy the network from one player to the other 
+    
+    def build_target_update(from_scope, to_scope):
+        from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=from_scope)
+        to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=to_scope)
+        op = []
+        for v1, v2 in zip(from_vars, to_vars):
+            op.append(v2.assign(v1))
+        return op  
+    
+
+###############################################################################
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -81,26 +96,42 @@ def train_policy_gradients(game_spec,
 
         def make_training_move(board_state, side):
             mini_batch_board_states.append(np.ravel(board_state) * side)
-            move = get_stochastic_network_move(session, input_layer, output_layer, board_state, side, valid_only=True, game_spec=game_spec) # valid_only=True, game_spec=game_spec
+            
+            
+            move = get_stochastic_network_move(session, input_layer, output_layer, board_state, side, valid_only=False, game_spec=game_spec) # valid_only=True, game_spec=game_spec
             #print(f'move: {move}')
             mini_batch_moves.append(move)
             return game_spec.flat_move_to_tuple(move.argmax())
         
         def make_training_move_2(board_state, side):
+            global log_
             mini_batch_board_states_2.append(np.ravel(board_state) * side)
-            move = get_stochastic_network_move(session, input_layer_2, output_layer_2, board_state, side, valid_only=True, game_spec=game_spec) # valid_only=True, game_spec=game_spec
-            mini_batch_moves_2.append(move)
+            if log_ == "Interactive":
+                pick = np.int(input("Enter Move (0-9): "))
+                move = np.zeros(game_spec.board_squares())
+                np.put(move, pick, 1)
+                mini_batch_moves_2.append(move)
+                return game_spec.flat_move_to_tuple((move.argmax()))
+            else:
+                move = get_stochastic_network_move(session, input_layer_2, output_layer_2, board_state, side, valid_only=False, game_spec=game_spec) # valid_only=True, game_spec=game_spec
+                mini_batch_moves_2.append(move)
             return game_spec.flat_move_to_tuple(move.argmax())
 
         for episode_number in range(1, number_of_games):
-            
+            global log_ 
+            log_ = False
             # randomize if going first or second
-            
+            if episode_number % 20000 == 0:
+                log_=True
+           # elif (episode_number%100001) == 0 or  (episode_number >499995 and episode_number<500000) or (
+           #     episode_number >699995 and episode_number<700000) or (episode_number >799995 and episode_number<800000):
+           #     log_ = "Interactive"
+               
             if (not randomize_first_player) or bool(random.getrandbits(1)):
-                reward = game_spec.play_game(make_training_move, make_training_move_2, log = False) # log = log_
+                reward = game_spec.play_game(make_training_move, make_training_move_2, log = log_) # log = log_
                 reward_2 = - reward
             else:
-                reward = -game_spec.play_game(make_training_move_2, make_training_move, log = False)
+                reward = -game_spec.play_game(make_training_move_2, make_training_move, log = log_)
                 reward_2 = - reward
 
             results.append(reward)
@@ -173,6 +204,19 @@ def train_policy_gradients(game_spec,
                 p1wins = np.append(p1wins, _win_rate_strict(print_results_every, results))
                 p2wins = np.append(p2wins, _win_rate_strict(print_results_every, results_2))
                 drawsarr = np.append(drawsarr, draws/print_results_every)
+            #   
+           #     if (_win_rate_strict(print_results_every, results) > _win_rate_strict(print_results_every, results_2)+0.15):
+           #         print("_______________________COPYING NETWORK_________________________")
+           #         print("_____________________Player 1 -> Player 2______________________")
+           #         update_winner_to_loser = build_target_update("player1", "player2")
+           #         session.run(update_winner_to_loser)
+                    
+           #     elif (_win_rate_strict(print_results_every, results_2) > _win_rate_strict(print_results_every, results) +0.15):
+           #         print("_______________________COPYING NETWORK_________________________")
+           #         print("_____________________Player 2 -> Player 1______________________")
+           #         
+           #         update_winner_to_loser = build_target_update("player2", "player1")
+           #         session.run(update_winner_to_loser)
 
 
         if save_network_file_path:

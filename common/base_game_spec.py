@@ -136,10 +136,15 @@ class BaseGameSpec(object):
                 return -alpha*player_turn
 
             board_state = self.apply_move(board_state, move, player_turn)
-            if log:
-                print(board_state)
 
             winner = self.has_winner(board_state)
+            if log: #and switch:
+                for x in board_state:
+                    print(*x, sep=" | ")
+                    print("________")
+                print()
+                print()
+                
             if winner != 0:
                 if log:
                     print("we have a winner, side playing with symbol: %s" % player_turn)

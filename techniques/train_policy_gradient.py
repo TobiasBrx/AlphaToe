@@ -48,7 +48,9 @@ def train_policy_gradients(game_spec,
     policy_gradient = tf.log(
         tf.reduce_sum(tf.multiply(actual_move_placeholder, output_layer), reduction_indices=1)) * reward_placeholder
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(-policy_gradient)
-
+    p1wins = np.array([])
+    p2wins = np.array([])
+    drawsarr = np.array([])
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
 
@@ -58,6 +60,7 @@ def train_policy_gradients(game_spec,
 
         mini_batch_board_states, mini_batch_moves, mini_batch_rewards = [], [], []
         results = collections.deque(maxlen=print_results_every)
+        results_2 = collections.deque(maxlen=print_results_every)
 
         def make_training_move(board_state, side):
             mini_batch_board_states.append(np.ravel(board_state) * side)
@@ -71,9 +74,12 @@ def train_policy_gradients(game_spec,
             # randomize if going first or second
             if (not randomize_first_player) or bool(random.getrandbits(1)):
                 reward = game_spec.play_game(make_training_move, opponent_func)
+                reward_2 = -reward
             else:
                 reward = -game_spec.play_game(opponent_func, make_training_move)
-
+                reward_2 = -reward
+            results.append(reward)
+            results_2.append(reward_2)
             results.append(reward)
 
             # we scale here so winning quickly is better winning slowly and loosing slowly better than loosing quick
@@ -112,13 +118,16 @@ def train_policy_gradients(game_spec,
                 print(" Player 2: episode: %s win_rate: %s" % (episode_number, (1-_win_rate_strict(print_results_every, results) \
                                                                                 -draws/print_results_every)))
                 print(f'Proportion of Draws: = {draws/print_results_every}')       
-                             
+                
+                p1wins = np.append(p1wins, _win_rate_strict(print_results_every, results))
+                p2wins = np.append(p2wins, _win_rate_strict(print_results_every, results_2))
+                drawsarr = np.append(drawsarr, draws/print_results_every)
 ###############################################################################
         
         if network_file_path:
             save_network(session, variables, save_network_file_path)
 
-    return variables, _win_rate(print_results_every, results)
+    return p1wins, p2wins, drawsarr
 
 ###############################################################################
 

@@ -32,6 +32,7 @@ from common.network_helpers import create_network_scope
 from games.tic_tac_toe import TicTacToeGameSpec
 from techniques.DQN_minmax import DQN_train_Nash
 from techniques.min_max import min_max_alpha_beta
+import numpy as np
 
 ###############################################################################
 
@@ -58,16 +59,23 @@ create_network_func_target_2 = functools.partial(create_network_scope, game_spec
 
 def min_max_move_func(board_state, side):
     return min_max_alpha_beta(game_spec, board_state, side, 5)[1]
+def min_max_move_func2(board_state, side):
+    return min_max_alpha_beta(game_spec, board_state, side, 6)[1]
 
-
-DQN_train_Nash(game_spec, create_network_func, create_network_func_2, 
+p1wins, p2wins, drawsarr = DQN_train_Nash(game_spec, create_network_func, create_network_func_2, 
                       create_network_func_target, create_network_func_target_2,
                       network_file_path=network_file_path_load,
                       save_network_file_path=NETWORK_FILE_PATH,
                       opponent_func=min_max_move_func,
+                      opponent_func_2 = min_max_move_func2,
                       number_of_games=NUMBER_OF_GAMES_TO_RUN,
                       batch_size=BATCH_SIZE,
                       learn_rate=LEARN_RATE,
                       print_results_every=PRINT_RESULTS_EVERY_X,
                       randomize_first_player=True,
                       copy_network_at=COPY_NETWORK_AT)
+
+np.save("pickles/DQN_against_Opt_p1.npy", p1wins)
+np.save("pickles/DQN_against_Opt_p2.npy", p2wins)
+np.save("pickles/DQN_against_Opt_draws.npy", drawsarr)
+print("saved!")

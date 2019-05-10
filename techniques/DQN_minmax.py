@@ -111,6 +111,7 @@ def DQN_train_Nash(game_spec,
                            network_file_path,
                            save_network_file_path=None,
                            opponent_func=None,
+                           opponent_func_2=None,
                            number_of_games=10000,
                            print_results_every=1000,
                            learn_rate=1e-4,
@@ -159,8 +160,16 @@ def DQN_train_Nash(game_spec,
     train_step = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_1)
     train_step_2 = tf.train.AdamOptimizer(learn_rate).minimize(td_gradient_2)
     
+    opponent = opponent_func
+    opponent2 = opponent_func_2
+    opponent_func = game_spec.get_random_player_func()
+    
     gamma = 0.99
     tau = 100
+    
+    p1wins = np.array([])
+    p2wins = np.array([])
+    drawsarr = np.array([])
 ###############################################################################    
 
 #To copy the principal to the target network
@@ -231,6 +240,55 @@ def DQN_train_Nash(game_spec,
             mini_batch_moves_2.append(move)
             return game_spec.flat_move_to_tuple(move.argmax())
         
+        def make_training_move_3(board_state, side, eps):
+            """
+            To have the second player play randomly, change positional argument eps in get_td_network_move() to > eps=1 <.
+            To have the second player play epsilon greedily, leave positional argument eps in get_td_network_move() as > eps < (from 
+            make_training_move_2(..., eps)).
+            """
+            #print("In the function")
+            global log_
+            mini_batch_board_states_2.append(np.ravel(board_state) * side)
+            if log_ == "Interactive":
+                pick = np.int(input("Enter Move (0-9): "))
+                move = np.zeros(game_spec.board_squares())
+                np.put(move, pick, 1)
+                mini_batch_moves_2.append(move)
+                return game_spec.flat_move_to_tuple((move.argmax()))
+            #epsilon greedy choice of the next move
+            elif opponent:
+                return opponent(board_state, side)
+            else:
+                move = get_td_network_move(session, input_layer_2, output_layer_2, board_state, 
+                                       side, eps=eps, valid_only=False, game_spec=game_spec) # valid_only=True
+            mini_batch_moves_2.append(move)
+            return game_spec.flat_move_to_tuple(move.argmax())
+        
+                
+        def make_training_move_4(board_state, side, eps):
+            """
+            To have the second player play randomly, change positional argument eps in get_td_network_move() to > eps=1 <.
+            To have the second player play epsilon greedily, leave positional argument eps in get_td_network_move() as > eps < (from 
+            make_training_move_2(..., eps)).
+            """
+            #print("In the function")
+            global log_
+            mini_batch_board_states_2.append(np.ravel(board_state) * side)
+            if log_ == "Interactive":
+                pick = np.int(input("Enter Move (0-9): "))
+                move = np.zeros(game_spec.board_squares())
+                np.put(move, pick, 1)
+                mini_batch_moves_2.append(move)
+                return game_spec.flat_move_to_tuple((move.argmax()))
+            #epsilon greedy choice of the next move
+            elif opponent2:
+                return opponent2(board_state, side)
+            else:
+                move = get_td_network_move(session, input_layer_2, output_layer_2, board_state, 
+                                       side, eps=eps, valid_only=False, game_spec=game_spec) # valid_only=True
+            mini_batch_moves_2.append(move)
+            return game_spec.flat_move_to_tuple(move.argmax())
+        
 #This is for training the first agent first against a random opponent who knows the rules of the game
             
         def make_training_move_train(board_state, side, eps):
@@ -264,23 +322,13 @@ def DQN_train_Nash(game_spec,
             #    log_ = "Interactive"
             #if we have a file path, we assume that the network is already trained and thus our epsilon greedy needs
             #less exploration
+            
             if network_file_path:
                 eps = np.exp(-50*episode_number/number_of_games) #5000/episode_number # np.exp(-5*episode_number/200000)
             else:
                 eps = np.exp(-10*episode_number/number_of_games)
                 
-            if (episode_number < 200000):
-                if (not randomize_first_player) or bool(random.getrandbits(1)):
-                    if log_:
-                        print("Player 1 starts with symbol 1. Player 2 follows with symbol -1")
-                    reward = game_spec.play_game_eps(make_training_move, make_training_move_train, eps, log = log_)
-                    reward_2 = - reward
-                else:
-                    if log_:
-                        print("Player 2 starts with symbol 1. Player 1 follows with symbol -1")
-                    reward = -game_spec.play_game_eps(make_training_move_train, make_training_move, eps, log = log_)
-                    reward_2 = - reward
-            else:
+            if episode_number <0:
                 
                 if (not randomize_first_player) or bool(random.getrandbits(1)):
                     if log_:
@@ -293,6 +341,36 @@ def DQN_train_Nash(game_spec,
                         print("Player 2 starts with symbol 1. Player 1 follows with symbol -1")
                     reward = -game_spec.play_game_eps(make_training_move_2, make_training_move, eps, log = log_)
                     reward_2 = - reward
+                    
+            elif episode_number <200000:
+                
+                if (not randomize_first_player) or bool(random.getrandbits(1)):
+                    if log_:
+                        print("Player 1 starts with symbol 1. Player 2 follows with symbol -1")
+                    reward = game_spec.play_game_eps(make_training_move, make_training_move_3, eps, log = log_)
+                    reward_2 = - reward
+
+                else:
+                    if log_:
+                        print("Player 2 starts with symbol 1. Player 1 follows with symbol -1")
+                    reward = -game_spec.play_game_eps(make_training_move_3, make_training_move, eps, log = log_)
+                    reward_2 = - reward
+            
+                    
+            else:
+                
+                if (not randomize_first_player) or bool(random.getrandbits(1)):
+                    if log_:
+                        print("Player 1 starts with symbol 1. Player 2 follows with symbol -1")
+                    reward = game_spec.play_game_eps(make_training_move, make_training_move_4, eps, log = log_)
+                    reward_2 = - reward
+
+                else:
+                    if log_:
+                        print("Player 2 starts with symbol 1. Player 1 follows with symbol -1")
+                    reward = -game_spec.play_game_eps(make_training_move_4, make_training_move, eps, log = log_)
+                    reward_2 = - reward
+        
                 
 
             results.append(reward)
@@ -342,12 +420,12 @@ def DQN_train_Nash(game_spec,
                 
                 np_mini_batch_board_states = np.array(mini_batch_board_states) \
                     .reshape(len(mini_batch_rewards), *input_layer.get_shape().as_list()[1:])
-                np_mini_batch_board_states_2 = np.array(mini_batch_board_states_2) \
-                    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
+                #np_mini_batch_board_states_2 = np.array(mini_batch_board_states_2) \
+                #    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
                 np_mini_batch_next_board_states = np.array(mini_batch_next_board_states) \
                     .reshape(len(mini_batch_rewards), *input_layer.get_shape().as_list()[1:])
-                np_mini_batch_next_board_states_2 = np.array(mini_batch_next_board_states_2) \
-                    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
+                #np_mini_batch_next_board_states_2 = np.array(mini_batch_next_board_states_2) \
+                #    .reshape(len(mini_batch_rewards_2), *input_layer_2.get_shape().as_list()[1:])
 
                 Q_targets = np.max(session.run(output_layer_t,
                     feed_dict={input_layer_t: np_mini_batch_next_board_states}), axis=1)
@@ -357,18 +435,18 @@ def DQN_train_Nash(game_spec,
                 session.run(train_step, feed_dict={input_layer: np_mini_batch_board_states, \
                                                    actual_move_placeholder: mini_batch_moves, target_1: targets_})
 
-                Q_targets_2 = np.max(session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np_mini_batch_next_board_states_2}), axis=1)
-                done_2 = [0 if all([x == 0 for x in i]) else 1 for i in np_mini_batch_next_board_states_2]
-                targets_2 = mini_batch_rewards_2 + gamma*Q_targets_2*done_2
+              #  Q_targets_2 = np.max(session.run(output_layer_t2,
+              #      feed_dict={input_layer_t2: np_mini_batch_next_board_states_2}), axis=1)
+              #  done_2 = [0 if all([x == 0 for x in i]) else 1 for i in np_mini_batch_next_board_states_2]
+              #  targets_2 = mini_batch_rewards_2 + gamma*Q_targets_2*done_2
 
                 #print("input layer",np_mini_batch_board_states_2.shape)
                 #print("actual move placeholder",len(mini_batch_moves_2))
                 
-                if not opponent_func or episode_number<200000:
-
-                    session.run(train_step_2, feed_dict={input_layer_2: np_mini_batch_board_states_2, \
-                                                   actual_move_placeholder_2: mini_batch_moves_2, target_2: targets_2})
+            #    if not opponent_func or episode_number<200000:
+#
+ #                   session.run(train_step_2, feed_dict={input_layer_2: np_mini_batch_board_states_2, \
+  #                                                 actual_move_placeholder_2: mini_batch_moves_2, target_2: targets_2})
 
 
                 #print("finished running train step 2")
@@ -403,161 +481,11 @@ def DQN_train_Nash(game_spec,
                 print(" Player 2: episode: %s win_rate: %s" % (episode_number, _win_rate_strict(print_results_every, results_2)))
                 print(f'Proportion of Draws: = {draws/print_results_every}')
                 winner = (_win_rate_strict(print_results_every, results) >= 0.5)
-                copy_network_at=1
                 
-                if (episode_number > 350000) and (_win_rate_strict(print_results_every, results) > copy_network_at):
-                    print("_______________________COPYING NETWORK_________________________")
-                    print("_____________________Player 1 -> Player 2______________________")
-                    update_winner_to_loser = build_target_update("principal", "principal_2")
-                    update_winner_to_loser_t = build_target_update("target", "target_2")
-                    session.run(update_winner_to_loser)
-                    session.run(update_winner_to_loser_t)
-                    #logging some sample Q-values
-    
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    print("___________________________")
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    
-                elif (episode_number > 350000) and (_win_rate_strict(print_results_every, results_2) > copy_network_at):
-                    print("_______________________COPYING NETWORK_________________________")
-                    print("_____________________Player 2 -> Player 1______________________")
-                    
-                    update_winner_to_loser = build_target_update("principal_2", "principal")
-                    update_winner_to_loser_t = build_target_update("target_2", "target")
-                    session.run(update_winner_to_loser)
-                    session.run(update_winner_to_loser_t)
-                    
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    print("___________________________")
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    
-                    
-                elif (episode_number >= 200000) and (_win_rate_strict(print_results_every, results) > (copy_network_at+0.2)):
-                    print("_______________________COPYING NETWORK_________________________")
-                    print("_____________________Player 1 -> Player 2______________________")
-                    update_winner_to_loser = build_target_update("principal", "principal_2")
-                    update_winner_to_loser_t = build_target_update("target", "target_2")
-                    session.run(update_winner_to_loser)
-                    session.run(update_winner_to_loser_t)
-                    #logging some sample Q-values
-    
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,0,0,0,0,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,0,0,0,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    print("___________________________")
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,0,0,0,0,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,0,0,0,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    
-                    
-                elif (episode_number >= 200000) and (_win_rate_strict(print_results_every, results_2) > (copy_network_at+0.2)):
-                    print("_______________________COPYING NETWORK_________________________")
-                    print("_____________________Player 2 -> Player 1______________________")
-                    
-                    update_winner_to_loser = build_target_update("principal_2", "principal")
-                    update_winner_to_loser_t = build_target_update("target_2", "target")
-                    session.run(update_winner_to_loser)
-                    session.run(update_winner_to_loser_t)
-                    
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,0,0,0,0,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([0,0,0,0,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    print("___________________________")
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,-1,-1,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,1,1,-1,-1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    Q = session.run(output_layer_t,
-                    feed_dict={input_layer_t: np.expand_dims([-1,-1,0,0,-1,1,1,1,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,0,0,0,0,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    Q = session.run(output_layer_t2,
-                    feed_dict={input_layer_t2: np.expand_dims([0,0,0,0,1,0,0,0,0],0)})
-                    print(f'Q-values: {Q}')
-                    
+                p1wins = np.append(p1wins, _win_rate_strict(print_results_every, results))
+                p2wins = np.append(p2wins, _win_rate_strict(print_results_every, results_2))
+                drawsarr = np.append(drawsarr, draws/print_results_every)
                 
-                    
-            
 ####################     ANALYSIS & LOGGING ###################################
 #if the network knows to play well it will have:
             # 1) the second to last element is max or the last element is max or the first element is max
@@ -594,7 +522,7 @@ def DQN_train_Nash(game_spec,
             else:
                 save_network(session, variables_2, save_network_file_path)
 
-    return variables, _win_rate(print_results_every, results)
+    return p1wins, p2wins, drawsarr
 
 ###############################################################################
 
